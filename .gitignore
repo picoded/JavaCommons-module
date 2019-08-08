@@ -1,23 +1,37 @@
-# Compiled class file
-*.class
+#
+# exclude common hidden file types
+#
+.*
+*.swp
+*._*
+*.unison*
 
-# Log file
+#
+# Exclude common temp files
+#
+debug.txt
 *.log
 
-# BlueJ files
-*.ctxt
+#
+# XCode workspace
+#
+**/xcuserdata/*
 
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
+#
+# Build folder
+#
+bin
+build
+bin/*
+build/*
 
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
+#
+# Testing tmp folder
+#
+test/tmp
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
+#
+# Include back .gitignore
+#
+!.gitignore
+!.travis.yml
