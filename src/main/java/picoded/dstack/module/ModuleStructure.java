@@ -9,7 +9,7 @@ import picoded.core.common.SystemSetupInterface;
 import picoded.core.struct.template.AbstractSystemSetupInterfaceCollection;
 
 /**
- * The core module structure in which, every module class has to comply with.
+ * The core module structure in which, every dstack.module class should comply with.
  * This helps provide consistent setup across implementations.
  **/
 public abstract class ModuleStructure implements AbstractSystemSetupInterfaceCollection {
