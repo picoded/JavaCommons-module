@@ -131,17 +131,6 @@ jar {
 			'Implementation-Version': project.version
 		)
 	}
-
-	// Include the compile class files
-	from("${jcGradleDirectory}/JavaCommons-core/build/classes/java/main") {
-		include "**/*"
-	}
-	from("${jcGradleDirectory}/JavaCommons-dstack/build/classes/java/main") {
-		include "**/*"
-	}
-	from("${jcGradleDirectory}/JavaCommons-servlet/build/classes/java/main") {
-		include "**/*"
-	}
 }
 
 //
