@@ -73,6 +73,7 @@ public class SimpleConcurrencyManager extends ModuleStructure {
 	 **/
 	public SimpleConcurrencyManager(CommonStack inStack, String inName) {
 		super(inStack, inName);
+		internalStructureList = setupInternalStructureList();
 	}
 	
 	/**
