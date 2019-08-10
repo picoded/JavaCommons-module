@@ -39,4 +39,53 @@ public class LockTokenManager_test extends BaseTestStack {
 	public void testObjSanityTest() {
 		assertNotNull(testObj);
 	}
+
+	// Lets get testing!
+	//-----------------------------------------------------
+
+	// Timeout range to be used across test
+	long lockTimeoutRange() {
+		return 1000;
+	}
+
+	// issueing of lock tokens
+	@Test
+	public void lockToken() {
+		assertTrue( testObj.lockToken("hello", lockTimeoutRange()) > 0l );
+		assertEquals( -1, testObj.lockToken("hello", lockTimeoutRange()) );
+	}
+
+	// issueing of two tokens
+	@Test
+	public void lockToken_2() {
+		lockToken();
+		assertTrue( testObj.lockToken("world", lockTimeoutRange()) > 0l );
+		assertEquals( -1, testObj.lockToken("world", lockTimeoutRange()) );
+	}
+
+	// validating of isLocked
+	@Test
+	public void isLocked() {
+		// Validate not locked
+		assertFalse( testObj.isLocked("hello") );
+		// Issue it
+		lockToken();
+		// Validate locked
+		assertTrue( testObj.isLocked("hello") );
+	}
+
+	@Test
+	public void lockAndUnlock() {
+		// Lets first lock it
+		long token_v1 = -1;
+		token_v1 = testObj.lockToken("hello", lockTimeoutRange());
+		assertTrue( token_v1 > 0l );
+		assertEquals( -1, testObj.lockToken("hello", lockTimeoutRange()) );
+		// Then unlock it
+		assertTrue( testObj.unlockToken("hello", token_v1) );
+		// And lock it again
+		assertTrue( testObj.lockToken("hello", lockTimeoutRange()) > 0l );
+		assertEquals( -1, testObj.lockToken("hello", lockTimeoutRange()) );
+	}
+
 }
