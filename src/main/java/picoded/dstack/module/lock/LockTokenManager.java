@@ -234,6 +234,7 @@ public class LockTokenManager extends ModuleStructure {
 				return true;
 			}
 
+			//
 			// Lets setup an unlock expiry (to remove the 0l eventually)
 			// Currently this is configured as a 24 hour unlock window
 			//
