@@ -74,6 +74,7 @@ public class LockTokenManager_test extends BaseTestStack {
 		assertTrue( testObj.isLocked("hello") );
 	}
 
+	// Locking, unlocking, and locking again
 	@Test
 	public void lockAndUnlock() {
 		// Lets first lock it
@@ -81,11 +82,39 @@ public class LockTokenManager_test extends BaseTestStack {
 		token_v1 = testObj.lockToken("hello", lockTimeoutRange());
 		assertTrue( token_v1 > 0l );
 		assertEquals( -1, testObj.lockToken("hello", lockTimeoutRange()) );
+		assertTrue( testObj.isLocked("hello") );
+
 		// Then unlock it
 		assertTrue( testObj.unlockToken("hello", token_v1) );
+		assertFalse( testObj.isLocked("hello") );
+
 		// And lock it again
 		assertTrue( testObj.lockToken("hello", lockTimeoutRange()) > 0l );
+		assertTrue( testObj.isLocked("hello") );
 		assertEquals( -1, testObj.lockToken("hello", lockTimeoutRange()) );
+		assertTrue( testObj.isLocked("hello") );
 	}
 
+	// Lock and renew
+	@Test
+	public void lockAndRenew() {
+		// Lets first lock it
+		long token_v1 = -1;
+		token_v1 = testObj.lockToken("hello", lockTimeoutRange());
+		assertTrue( token_v1 > 0l );
+		assertEquals( -1, testObj.lockToken("hello", lockTimeoutRange()) );
+		assertTrue( testObj.isLocked("hello") );
+
+		// Lock renewal
+		long token_renew = -1;
+		token_renew = testObj.renewToken("hello", token_v1, lockTimeoutRange());
+		assertTrue( token_renew > 0l );
+		assertEquals( -1, testObj.lockToken("hello", lockTimeoutRange()) );
+		assertTrue( testObj.isLocked("hello") );
+
+		// Lets fail to renew the old one
+		assertEquals( -1, testObj.renewToken("hello", token_v1, lockTimeoutRange()) );
+		assertEquals( -1, testObj.lockToken("hello", lockTimeoutRange()) );
+		assertTrue( testObj.isLocked("hello") );
+	}
 }
