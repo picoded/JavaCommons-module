@@ -169,7 +169,7 @@ public class LockTokenManager extends ModuleStructure {
 	 * 
 	 * @return the lock token if valid, -1 if no valid token issued
 	 */
-	public long lockToken(String lockID, long lockTimeout) {
+	public long getLockToken(String lockID, long lockTimeout) {
 		return setupToken(lockID, 0l, lockTimeout);
 	}
 
@@ -185,7 +185,7 @@ public class LockTokenManager extends ModuleStructure {
 	 * 
 	 * @return the lock token if valid, -1 if no valid token issued
 	 */
-	public long renewToken(String lockID, long originalToken, long lockTimeout) {
+	public long renewLockToken(String lockID, long originalToken, long lockTimeout) {
 		if(originalToken <= 0) {
 			throw new RuntimeException("Invalid lock token used (lockID = "+lockID+") : "+originalToken);
 		}
@@ -200,7 +200,7 @@ public class LockTokenManager extends ModuleStructure {
 	 * 
 	 * @return true, if unlock was succesful, else false if failed
 	 */
-	public boolean unlockToken(String lockID, long existingToken) {
+	public boolean returnLockToken(String lockID, long existingToken) {
 		// Lets attempt to do an unlock!
 		if( lockMap.weakCompareAndSet(lockID,existingToken,0l) ) {
 			//
