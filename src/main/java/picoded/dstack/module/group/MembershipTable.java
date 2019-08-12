@@ -1,11 +1,11 @@
-package picoded.module.group;
+package picoded.dstack.module.group;
 
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import picoded.dstack.*;
-import picoded.module.*;
+import picoded.dstack.module.*;
 import picoded.core.conv.*;
 import picoded.core.struct.*;
 import picoded.core.struct.query.Query;

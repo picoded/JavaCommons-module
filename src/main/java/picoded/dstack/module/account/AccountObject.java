@@ -1,4 +1,4 @@
-package picoded.module.account;
+package picoded.dstack.module.account;
 
 import java.util.*;
 

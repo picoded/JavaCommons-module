@@ -1,4 +1,4 @@
-package picoded.module.group;
+package picoded.dstack.module.group;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
