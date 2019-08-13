@@ -66,15 +66,15 @@ public class LockTokenManager extends ModuleStructure {
 	 */
 	protected List<CommonStructure> setupInternalStructureList() {
 		// Safety check
-		if ( lockMap == null ) {
-			if ( stack == null || name == null ) {
+		if (lockMap == null) {
+			if (stack == null || name == null) {
 				throw new RuntimeException(
 					"Missing required Map, and the stack/name param requried to be initialized");
 			}
 		}
 		
 		// The internal Maps required, 
-		if ( lockMap == null ) {
+		if (lockMap == null) {
 			lockMap = stack.keyLongMap(name);
 		}
 		
@@ -92,7 +92,7 @@ public class LockTokenManager extends ModuleStructure {
 	 * Internal random number generator
 	 */
 	SecureRandom randObj = new SecureRandom();
-
+	
 	/**
 	 * Issues a lock token internally
 	 * 
@@ -100,29 +100,32 @@ public class LockTokenManager extends ModuleStructure {
 	 * @param existingToken  to renew, else use 0l to issue a new token
 	 * @param lockTimeout    lock timeout for token
 	 * 
-	 * @return the lock token if valid, -1 if no valid token issued
+	 * @return the lock token if valid, or a negative if no valid token issued
 	 */
 	protected long setupToken(String lockID, long existingToken, long lockTimeout) {
 		// Lets derive the "new" lock token - randomly!
-		long nextLockToken = Math.abs( (randObj).nextLong() );
+		//
+		// This is intentionally an integer value, as it is "random enough"
+		// and would avoid a known issue with mysql long accuracy
+		long nextLockToken = Math.abs((randObj).nextInt());
 		
 		// Lets attempt to get a lock
-		if( lockMap.weakCompareAndSet(lockID,existingToken,nextLockToken) ) {
+		if (lockMap.weakCompareAndSet(lockID, existingToken, nextLockToken)) {
 			// YAY lock succesful - enforce expiry
 			lockMap.setLifeSpan(lockID, lockTimeout);
-
+			
 			// Validate the existing value, this guard against a narrow
 			// lock expriy window which occurs between
 			// a weakCompareAndSet, and the setLifeSpan command.
 			long registeredToken = lockMap.getLong(lockID);
-			if( lockMap.getLong(lockID) != nextLockToken ) {
+			if (registeredToken != nextLockToken) {
 				return -1;
 			}
-
+			
 			// Return the lock
 			return nextLockToken;
 		}
-
+		
 		// Double check if there is an expiry - reapply if needed
 		// this is to work around hypothetical crashes after weakCompare
 		//
@@ -134,14 +137,14 @@ public class LockTokenManager extends ModuleStructure {
 		//
 		// See UNLOCK_DEADLOCK_WARNING below in `unlockToken`
 		long currentLifespan = lockMap.getLifespan(lockID);
-		if( currentLifespan == 0 || currentLifespan > lockTimeout ) {
+		if (currentLifespan == 0 || currentLifespan > lockTimeout) {
 			lockMap.setLifeSpan(lockID, lockTimeout);
 		}
-
+		
 		// Return -1 on lock failure
 		return -1;
 	}
-
+	
 	//----------------------------------------------------------------
 	//
 	//  Class setup
@@ -157,7 +160,7 @@ public class LockTokenManager extends ModuleStructure {
 		// Validate it
 		return val != null && val.longValue() > 0;
 	}
-
+	
 	/**
 	 * Issues a lock token for the given lockID.
 	 * 
@@ -169,10 +172,10 @@ public class LockTokenManager extends ModuleStructure {
 	 * 
 	 * @return the lock token if valid, -1 if no valid token issued
 	 */
-	public long getLockToken(String lockID, long lockTimeout) {
+	public long issueLockToken(String lockID, long lockTimeout) {
 		return setupToken(lockID, 0l, lockTimeout);
 	}
-
+	
 	/**
 	 * Issues a lock token for the given lockID
 	 * 
@@ -186,12 +189,13 @@ public class LockTokenManager extends ModuleStructure {
 	 * @return the lock token if valid, -1 if no valid token issued
 	 */
 	public long renewLockToken(String lockID, long originalToken, long lockTimeout) {
-		if(originalToken <= 0) {
-			throw new RuntimeException("Invalid lock token used (lockID = "+lockID+") : "+originalToken);
+		if (originalToken <= 0) {
+			throw new RuntimeException("Invalid lock token used (lockID = " + lockID + ") : "
+				+ originalToken);
 		}
 		return setupToken(lockID, originalToken, lockTimeout);
 	}
-
+	
 	/**
 	 * Unlock an existing lock, using the lockID
 	 * 
@@ -202,7 +206,7 @@ public class LockTokenManager extends ModuleStructure {
 	 */
 	public boolean returnLockToken(String lockID, long existingToken) {
 		// Lets attempt to do an unlock!
-		if( lockMap.weakCompareAndSet(lockID,existingToken,0l) ) {
+		if (lockMap.weakCompareAndSet(lockID, existingToken, 0l)) {
 			//
 			// Unlock is done, lets make sure a value expiry is configured.
 			//
@@ -210,30 +214,30 @@ public class LockTokenManager extends ModuleStructure {
 			// be cleared from the system. However by doing so it introduces,
 			// various edge case race conditions, which is addressed below.
 			// 
-
+			
 			// Get the existing KeyLong
 			KeyLong val = lockMap.get(lockID);
-
+			
 			// Value was invalidated / expired
 			// this is a small time window for this to be able to occur
 			// but oh well, it happened, and unlock is succesful - return
-			if( val == null ) {
+			if (val == null) {
 				return true;
 			}
-
+			
 			// Check if there is an existing lock expiry,
 			// if configured - returns true if it exists
 			// and follow that lock expiry.
-			if( val.getExpiry() > 0l ) {
+			if (val.getExpiry() > 0l) {
 				return true;
 			}
-
+			
 			// Check if value is != 0, meaning its this unlockToken
 			// expiry time, belongs to another "setupToken" call
-			if( val.longValue() != 0l ) {
+			if (val.longValue() != 0l) {
 				return true;
 			}
-
+			
 			//
 			// Lets setup an unlock expiry (to remove the 0l eventually)
 			// Currently this is configured as a 24 hour unlock window
@@ -261,7 +265,7 @@ public class LockTokenManager extends ModuleStructure {
 			// @TODO consideration - add "setLifespan_ifBlank" support to KeyLongMap
 			//
 			lockMap.setLifeSpan(lockID, 24 * 60 * 60 * 1000); // PLEASE READ COMMENT ABOVE (do not remove)
-
+			
 			// Return res true for succesful unlock
 			return true;
 		}

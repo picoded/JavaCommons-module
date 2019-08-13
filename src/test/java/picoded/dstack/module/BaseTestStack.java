@@ -9,7 +9,7 @@ import picoded.dstack.*;
 import picoded.dstack.struct.simple.*;
 
 public class BaseTestStack {
-
+	
 	// To override for implementation
 	//-----------------------------------------------------
 	
@@ -46,7 +46,7 @@ public class BaseTestStack {
 	
 	// Internal stack object (initialized by system setup)
 	public CommonStack stack = null;
-
+	
 	/**
 	 * @return a andom table name string (sutible as a prefix)
 	 */

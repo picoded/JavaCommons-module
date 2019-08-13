@@ -66,19 +66,18 @@ public class RunnableTaskCluster extends RunnableTaskManager {
 	 */
 	protected List<CommonStructure> setupInternalStructureList() {
 		// Safety check
-		if ( lockMap == null || taskMap == null ) {
-			if ( stack == null || name == null ) {
-				throw new RuntimeException(
-					"Missing required datastructures requried to be initialized");
+		if (lockMap == null || taskMap == null) {
+			if (stack == null || name == null) {
+				throw new RuntimeException("Missing required datastructures requried to be initialized");
 			}
 		}
 		
 		// The internal Maps required, 
 		super.setupInternalStructureList();
-		if ( taskMap == null ) {
-			taskMap = stack.dataObjectMap(name+"_state");
+		if (taskMap == null) {
+			taskMap = stack.dataObjectMap(name + "_state");
 		}
-
+		
 		// Return as a list collection
 		return Arrays.asList(new CommonStructure[] { lockMap, taskMap });
 	}
@@ -93,38 +92,37 @@ public class RunnableTaskCluster extends RunnableTaskManager {
 	 * The current RunnableTaskManager GUID, initialized on instance construction
 	 */
 	protected String _managerID = GUID.base58();
-
+	
 	/**
 	 * @return the unique base 58 GUID of the task manager
 	 */
 	public String getManagerID() {
 		return _managerID;
 	}
-
+	
 	// Server host address
 	protected String _hostAddress = null;
-
+	
 	/**
 	 * @return the server instance various host address, note that this maybe cached
 	 */
 	public String getHostAddress() {
 		// Return cached address
-		if( _hostAddress != null ) {
+		if (_hostAddress != null) {
 			return _hostAddress;
 		}
-
+		
 		// Lets get it
 		try {
 			InetAddress host = InetAddress.getLocalHost();
-			_hostAddress = ""+host.getHostAddress();
-		} catch(Exception e) {
+			_hostAddress = "" + host.getHostAddress();
+		} catch (Exception e) {
 			// Host address fetch failed
 			_hostAddress = "unknown";
 		}
-
+		
 		// Return the configured host address
 		return _hostAddress;
 	}
- 
-
+	
 }

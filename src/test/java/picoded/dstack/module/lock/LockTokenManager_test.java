@@ -9,7 +9,7 @@ import picoded.dstack.module.*;
 import picoded.dstack.*;
 
 public class LockTokenManager_test extends BaseTestStack {
-
+	
 	// Test setup
 	//-----------------------------------------------------
 	
@@ -17,7 +17,7 @@ public class LockTokenManager_test extends BaseTestStack {
 	 * Internal test object being tested
 	 */
 	public LockTokenManager testObj = null;
-
+	
 	/**
 	 * [to override if needed]
 	 * Does the internal stack setup
@@ -25,10 +25,10 @@ public class LockTokenManager_test extends BaseTestStack {
 	@Before
 	public void systemSetup() {
 		super.systemSetup();
-		testObj = new LockTokenManager( stack.keyLongMap( ramdomTableName() ) );
+		testObj = new LockTokenManager(stack.keyLongMap(ramdomTableName()));
 		testObj.systemSetup();
 	}
-
+	
 	// Sanity Test
 	//-----------------------------------------------------
 	
@@ -39,82 +39,89 @@ public class LockTokenManager_test extends BaseTestStack {
 	public void testObjSanityTest() {
 		assertNotNull(testObj);
 	}
-
+	
 	// Lets get testing!
 	//-----------------------------------------------------
-
+	
 	// Timeout range to be used across test
 	long lockTimeoutRange() {
 		return 1000;
 	}
-
+	
 	// issueing of lock tokens
 	@Test
-	public void getLockToken() {
-		assertTrue( testObj.getLockToken("hello", lockTimeoutRange()) > 0l );
-		assertEquals( -1, testObj.getLockToken("hello", lockTimeoutRange()) );
+	public void issueLockToken() {
+		assertTrue(testObj.issueLockToken("hello", lockTimeoutRange()) > 0l);
+		assertEquals(-1, testObj.issueLockToken("hello", lockTimeoutRange()));
 	}
-
+	
+	// issueing of lock tokens, with special chars
+	@Test
+	public void issueLockToken_withSpecialChars() {
+		assertTrue(testObj.issueLockToken("hello~!@#$%^&*()1234567890", lockTimeoutRange()) > 0l);
+		assertEquals(-1, testObj.issueLockToken("hello~!@#$%^&*()1234567890", lockTimeoutRange()));
+	}
+	
 	// issueing of two tokens
 	@Test
 	public void lockToken_2() {
-		getLockToken();
-		assertTrue( testObj.getLockToken("world", lockTimeoutRange()) > 0l );
-		assertEquals( -1, testObj.getLockToken("world", lockTimeoutRange()) );
+		issueLockToken();
+		assertTrue(testObj.issueLockToken("world", lockTimeoutRange()) > 0l);
+		assertEquals(-1, testObj.issueLockToken("world", lockTimeoutRange()));
 	}
-
+	
 	// validating of isLocked
 	@Test
 	public void isLocked() {
 		// Validate not locked
-		assertFalse( testObj.isLocked("hello") );
+		assertFalse(testObj.isLocked("hello"));
 		// Issue it
-		getLockToken();
+		issueLockToken();
 		// Validate locked
-		assertTrue( testObj.isLocked("hello") );
+		assertTrue(testObj.isLocked("hello"));
 	}
-
+	
 	// Locking, unlocking, and locking again
 	@Test
 	public void lockAndUnlock() {
 		// Lets first lock it
 		long token_v1 = -1;
-		token_v1 = testObj.getLockToken("hello", lockTimeoutRange());
-		assertTrue( token_v1 > 0l );
-		assertEquals( -1, testObj.getLockToken("hello", lockTimeoutRange()) );
-		assertTrue( testObj.isLocked("hello") );
-
+		token_v1 = testObj.issueLockToken("hello", lockTimeoutRange());
+		assertTrue(token_v1 > 0l);
+		assertEquals(-1, testObj.issueLockToken("hello", lockTimeoutRange()));
+		assertTrue(testObj.isLocked("hello"));
+		
 		// Then unlock it
-		assertTrue( testObj.returnLockToken("hello", token_v1) );
-		assertFalse( testObj.isLocked("hello") );
-
+		assertTrue(testObj.returnLockToken("hello", token_v1));
+		assertFalse(testObj.isLocked("hello"));
+		
 		// And lock it again
-		assertTrue( testObj.getLockToken("hello", lockTimeoutRange()) > 0l );
-		assertTrue( testObj.isLocked("hello") );
-		assertEquals( -1, testObj.getLockToken("hello", lockTimeoutRange()) );
-		assertTrue( testObj.isLocked("hello") );
+		assertTrue(testObj.issueLockToken("hello", lockTimeoutRange()) > 0l);
+		assertTrue(testObj.isLocked("hello"));
+		assertEquals(-1, testObj.issueLockToken("hello", lockTimeoutRange()));
+		assertTrue(testObj.isLocked("hello"));
 	}
-
+	
 	// Lock and renew
 	@Test
 	public void lockAndRenew() {
 		// Lets first lock it
 		long token_v1 = -1;
-		token_v1 = testObj.getLockToken("hello", lockTimeoutRange());
-		assertTrue( token_v1 > 0l );
-		assertEquals( -1, testObj.getLockToken("hello", lockTimeoutRange()) );
-		assertTrue( testObj.isLocked("hello") );
-
+		token_v1 = testObj.issueLockToken("hello", lockTimeoutRange());
+		assertTrue(token_v1 > 0l);
+		assertEquals(-1, testObj.issueLockToken("hello", lockTimeoutRange()));
+		assertTrue(testObj.isLocked("hello"));
+		
 		// Lock renewal
 		long token_renew = -1;
 		token_renew = testObj.renewLockToken("hello", token_v1, lockTimeoutRange());
-		assertTrue( token_renew > 0l );
-		assertEquals( -1, testObj.getLockToken("hello", lockTimeoutRange()) );
-		assertTrue( testObj.isLocked("hello") );
-
+		assertTrue(token_renew > 0l);
+		assertEquals(-1, testObj.issueLockToken("hello", lockTimeoutRange()));
+		assertTrue(testObj.isLocked("hello"));
+		
 		// Lets fail to renew the old one
-		assertEquals( -1, testObj.renewLockToken("hello", token_v1, lockTimeoutRange()) );
-		assertEquals( -1, testObj.getLockToken("hello", lockTimeoutRange()) );
-		assertTrue( testObj.isLocked("hello") );
+		assertEquals(-1, testObj.renewLockToken("hello", token_v1, lockTimeoutRange()));
+		assertEquals(-1, testObj.issueLockToken("hello", lockTimeoutRange()));
+		assertTrue(testObj.isLocked("hello"));
 	}
 }
