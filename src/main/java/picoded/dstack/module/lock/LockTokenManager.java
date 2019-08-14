@@ -103,11 +103,19 @@ public class LockTokenManager extends ModuleStructure {
 	 * @return the lock token if valid, or a negative if no valid token issued
 	 */
 	protected long setupToken(String lockID, long existingToken, long lockTimeout) {
-		// Lets derive the "new" lock token - randomly!
+		// Lock token to return if valid
+		//
+		// token is resued when possible to help improve Idempotence
+		// in asyncronous use cases (such as locking API's)
+		long nextLockToken = existingToken;
+		
+		// Lets derive the "new" lock token if needed  - randomly!
 		//
 		// This is intentionally an integer value, as it is "random enough"
 		// and would avoid a known issue with mysql long accuracy
-		long nextLockToken = Math.abs((randObj).nextInt());
+		if (nextLockToken <= 0l) {
+			nextLockToken = Math.abs((randObj).nextInt());
+		}
 		
 		// Lets attempt to get a lock
 		if (lockMap.weakCompareAndSet(lockID, existingToken, nextLockToken)) {
@@ -175,7 +183,7 @@ public class LockTokenManager extends ModuleStructure {
 	public long getLockLifespan(String lockID) {
 		return lockMap.getLifespan(lockID);
 	}
-
+	
 	/**
 	 * Issues a lock token for the given lockID.
 	 * 

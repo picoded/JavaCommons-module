@@ -13,7 +13,7 @@ import picoded.dstack.jsql.JSqlStack;
 import picoded.dstack.connector.jsql.*;
 
 public class LockTokenManager_Mysql_test extends LockTokenManager_Sqlite_test {
-    
+	
 	// To override for implementation
 	//-----------------------------------------------------
 	

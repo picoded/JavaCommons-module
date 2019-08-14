@@ -116,11 +116,8 @@ public class LockTokenManager_test extends BaseTestStack {
 		long token_renew = -1;
 		token_renew = testObj.renewLockToken("hello", token_v1, lockTimeoutRange());
 		assertTrue(token_renew > 0l);
-		assertEquals(-1, testObj.issueLockToken("hello", lockTimeoutRange()));
-		assertTrue(testObj.isLocked("hello"));
-		
-		// Lets fail to renew the old one
-		assertEquals(-1, testObj.renewLockToken("hello", token_v1, lockTimeoutRange()));
+
+		// Lets fail to issue a new lock
 		assertEquals(-1, testObj.issueLockToken("hello", lockTimeoutRange()));
 		assertTrue(testObj.isLocked("hello"));
 	}
