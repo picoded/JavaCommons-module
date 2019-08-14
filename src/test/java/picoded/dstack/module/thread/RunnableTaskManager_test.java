@@ -2,6 +2,7 @@ package picoded.dstack.module.thread;
 
 // Java imports
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 // Lib imports
 import org.junit.*;
@@ -48,8 +49,17 @@ public class RunnableTaskManager_test extends BaseTestStack {
 	
 	@Test
 	public void simpleTask() {
+		// Counter to increment
+		final AtomicInteger helloCounter = new AtomicInteger(0);
+		// Task to run
 		testObj.registerRunnableTask("hello", () -> {
-			return;
+			helloCounter.incrementAndGet();
 		});
+
+		// Test it
+		assertTrue(testObj.executeRunnableTask("hello"));
+		assertEquals(1, helloCounter.get());
+		assertTrue(testObj.executeRunnableTask("hello"));
+		assertEquals(2, helloCounter.get());
 	}
 }

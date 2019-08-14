@@ -2,6 +2,12 @@ package picoded.dstack.module.thread;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.net.InetAddress;
 import java.security.SecureRandom;
 
@@ -99,6 +105,11 @@ public class RunnableTaskManager extends ModuleStructure {
 		return Arrays.asList(new CommonStructure[] { lockMap });
 	}
 	
+	// ExecutorService used to coordinate / cleanup all the various runnable threads
+	//
+	// @TODO consider using a fixed pool, see - https://stackoverflow.com/a/34285268
+	ExecutorService runnableExecutor = Executors.newCachedThreadPool();
+	
 	//----------------------------------------------------------------
 	//
 	//  Internal timings
@@ -117,7 +128,7 @@ public class RunnableTaskManager extends ModuleStructure {
 	
 	//----------------------------------------------------------------
 	//
-	//  Runnable task managerment
+	//  Runnable task registration / management
 	//
 	//----------------------------------------------------------------
 	
@@ -131,15 +142,18 @@ public class RunnableTaskManager extends ModuleStructure {
 		runnableMap.put(taskName, runner);
 	}
 	
+	//----------------------------------------------------------------
+	//
+	//  Task execution utility functions
+	//
+	//----------------------------------------------------------------
+	
 	/**
-	 * Executes a previously registered task, only if lock was succesfully acquired
-	 * This function BLOCKS the current thread, till the task is complete. Or if task failed.
-	 * 
-	 * @param taskName  to execute
-	 * 
-	 * @return true if executed succesfully, else return false if lock failed
+	 * Get an existing runnable, or throw an exception
+	 * @param taskName  to get the runnable from
+	 * @return runnable if it exists
 	 */
-	public boolean executeRunnableTask(String taskName) {
+	protected Runnable getRunnable_orThrowException(String taskName) {
 		// Get the Runnable first
 		Runnable runner = runnableMap.get(taskName);
 		
@@ -148,38 +162,58 @@ public class RunnableTaskManager extends ModuleStructure {
 			throw new RuntimeException("Unable to execute taskName as it does not exist : " + taskName);
 		}
 		
-		// Task exist, lets get a lock on it
-		long lockToken = lockManager.issueLockToken(taskName, taskInactiveTimeout);
-		
-		// Lock failed, return false
-		if (lockToken <= 0) {
-			return false;
-		}
+		// Return the runner
+		return runner;
+	}
+	
+	/**
+	 * Given a previously initialized lockToken, taskName, and runner
+	 * Does the continous relocking and "thread sleep loop", till the task is complete
+	 * 
+	 * This function BLOCKS the current thread, till the task is complete. Or if task failed.
+	 * 
+	 * @param taskName     to perform locking renewal on / unlocks on
+	 * @param runThread    thread to actually start, and wait for (to join)
+	 * @param inLockToken  lock token to use for renewal
+	 * 
+	 * @return true if runnable completes without interruptions
+	 */
+	protected boolean executeRunnable_withExistingLock(String taskName, Runnable runner,
+		long inLockToken) {
+		// Lock token to use
+		long lockToken = inLockToken;
 		
 		// Lock was succesful, lets run the thread
 		try {
-			// Prepare the thread, and start it
-			Thread runThread = new Thread(runner);
-			runThread.start();
+			// Pass it to the executor, start it, and get the Future object
+			Future<?> futureObj = runnableExecutor.submit(runner);
 			
-			// Wait till its completed, renewing the lock if needed
-			while (runThread.isAlive()) {
-				// Wait for it to complete, with a short nap
-				runThread.join(taskUpdateInterval);
+			// While its running, does the lock renewals
+			while ((futureObj.isCancelled() || futureObj.isDone()) != true) {
+				
+				// Lets wait for it to complete with a short nap
+				try {
+					futureObj.get(taskUpdateInterval, TimeUnit.MILLISECONDS);
+				} catch (TimeoutException e) {
+					// does nothing on timeout exception
+				}
 				
 				// Renew the token
 				lockToken = lockManager.renewLockToken(taskName, lockToken, taskInactiveTimeout);
 				
 				// If renew failed - ABORT
 				if (lockToken <= 0) {
+					// ABORT warning (to trace it if needed)
+					/// @TODO - consider an option to silence this or configure logging level (not important as of now due to edge case handling)
+					System.err.println("WARNING (RunnableTaskManager, taskName=" + taskName
+						+ ") - Aborting a running task, due to lock token renewal failure, lockToken = "
+						+ lockToken);
+					
 					// Trigger an interrupt
-					runThread.interrupt();
+					futureObj.cancel(true);
 					
-					// Wait for interrupt to complete
-					runThread.join(taskInterruptTimeout);
-					
-					// Check for interruption failure
-					if (runThread.isAlive()) {
+					// Check for interruption failure - technically this should be impossible?
+					if ((futureObj.isCancelled() || futureObj.isDone()) != true) {
 						throw new RuntimeException("Failed to abort task (due to failed lock renewal) : "
 							+ taskName);
 					}
@@ -191,8 +225,11 @@ public class RunnableTaskManager extends ModuleStructure {
 			
 			// Succesful execution and join
 			return true;
+		} catch (ExecutionException e) {
+			// Exception occured, return false
+			return false;
 		} catch (InterruptedException e) {
-			// Interrupt occured
+			// Interrupt occured, return false
 			return false;
 		} finally {
 			// Attempt to release the lockToken, if its valid
@@ -200,6 +237,51 @@ public class RunnableTaskManager extends ModuleStructure {
 				lockManager.returnLockToken(taskName, lockToken);
 			}
 		}
+	}
+	
+	//----------------------------------------------------------------
+	//
+	//  Task execution
+	//
+	//----------------------------------------------------------------
+	
+	/**
+	 * Executes a previously registered task, only if lock was succesfully acquired
+	 * This function BLOCKS the current thread, till the task is complete. Or if task failed.
+	 * 
+	 * @param taskName  to execute
+	 * 
+	 * @return true if executed succesfully, else return false if lock failed
+	 */
+	public boolean executeRunnableTask(String taskName) {
+		// Get the Runnable first
+		Runnable runner = getRunnable_orThrowException(taskName);
+		
+		// Task exist, lets get a lock on it
+		long lockToken = lockManager.issueLockToken(taskName, taskInactiveTimeout);
+		
+		// Lock failed, return false
+		if (lockToken <= 0) {
+			return false;
+		}
+		
+		// Execute the runnable, and block accordingly
+		return executeRunnable_withExistingLock(taskName, runner, lockToken);
+	}
+	
+	/**
+	 * Executes a previously registered task, only if lock was succesfully acquired
+	 * This function executes the task asyncronously in a new thread, returning a "Future" object
+	 * 
+	 * @param taskName  to execute
+	 * 
+	 * @return true if executed succesfully, else return false if lock failed
+	 */
+	public Future<Boolean> executeRunnableTask_async(String taskName) {
+		RunnableTaskManager self = this;
+		return runnableExecutor.submit(() -> {
+			return self.executeRunnableTask(taskName);
+		});
 	}
 	
 	/**
