@@ -153,14 +153,29 @@ public class LockTokenManager extends ModuleStructure {
 	
 	/**
 	 * Check and return true, if the given lockID "is locked"
+	 * 
+	 * @param lockID         to lookup
+	 * 
+	 * @return true, if lock exists
 	 */
 	public boolean isLocked(String lockID) {
 		// This fetches the expiry, and lock value in a single call
 		KeyLong val = lockMap.get(lockID);
 		// Validate it
-		return val != null && val.longValue() > 0;
+		return val != null && val.longValue() != 0l;
 	}
 	
+	/**
+	 * Get an existing lock remaining lifespan
+	 * 
+	 * @param lockID         to lookup
+	 * 
+	 * @return -1 if lock does not exist, 0 if no lifespan is configured (possible in race condition), >0 is lifespan left
+	 */
+	public long getLockLifespan(String lockID) {
+		return lockMap.getLifespan(lockID);
+	}
+
 	/**
 	 * Issues a lock token for the given lockID.
 	 * 
