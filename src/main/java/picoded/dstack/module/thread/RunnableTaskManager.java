@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Logger;
 import java.net.InetAddress;
 import java.security.SecureRandom;
 
@@ -110,6 +111,15 @@ public class RunnableTaskManager extends ModuleStructure {
 	// @TODO consider using a fixed pool, see - https://stackoverflow.com/a/34285268
 	ExecutorService runnableExecutor = Executors.newCachedThreadPool();
 	
+	/**
+	 * Extends close operations to close all existing runnableExecutors
+	 */
+	@Override
+	public void close() {
+		super.close();
+		runnableExecutor.shutdownNow();
+	}
+	
 	//----------------------------------------------------------------
 	//
 	//  Internal timings
@@ -144,6 +154,29 @@ public class RunnableTaskManager extends ModuleStructure {
 	
 	//----------------------------------------------------------------
 	//
+	// Reusable output logger
+	//
+	//----------------------------------------------------------------
+	
+	/**
+	 * logging interface
+	 *
+	 * This is not a static class, so that the this object inherits
+	 * any extensions if needed
+	 **/
+	public Logger log() {
+		if (logObj != null) {
+			return logObj;
+		}
+		logObj = Logger.getLogger(this.getClass().getName());
+		return logObj;
+	}
+	
+	// Memoizer for log() function
+	protected Logger logObj = null;
+	
+	//----------------------------------------------------------------
+	//
 	//  Task execution utility functions
 	//
 	//----------------------------------------------------------------
@@ -167,8 +200,41 @@ public class RunnableTaskManager extends ModuleStructure {
 	}
 	
 	/**
+	 * [To be extended for - RunnableTaskCluster]
+	 * 
+	 * Issue out a lock
+	 * 
+	 * See: LockTokenManager.issueLockToken
+	 * 
+	 * @param taskName               `lockID` in LockTokenManager
+	 * 
+	 * @return  renewLockToken result
+	 */
+	protected long issueLockToken(String taskName) {
+		return lockManager.issueLockToken(taskName, taskInactiveTimeout);
+	}
+	
+	/**
+	 * [To be extended for - RunnableTaskCluster]
+	 * 
+	 * Perform lock renewal for a previously issued lock
+	 * 
+	 * See: LockTokenManager.renewLockToken
+	 * 
+	 * @param taskName               `lockID` in LockTokenManager
+	 * @param lockToken              `originalToken` in LockTokenManager
+	 * 
+	 * @return  renewLockToken result
+	 */
+	protected long renewLockToken(String taskName, long lockToken) {
+		return lockManager.renewLockToken(taskName, lockToken, taskInactiveTimeout);
+	}
+	
+	/**
 	 * Given a previously initialized lockToken, taskName, and runner
-	 * Does the continous relocking and "thread sleep loop", till the task is complete
+	 * Does the continous relocking and "thread sleep loop", till the task is complete.
+	 * 
+	 * This automatically performs an unlock on task complete
 	 * 
 	 * This function BLOCKS the current thread, till the task is complete. Or if task failed.
 	 * 
@@ -199,15 +265,18 @@ public class RunnableTaskManager extends ModuleStructure {
 				}
 				
 				// Renew the token
-				lockToken = lockManager.renewLockToken(taskName, lockToken, taskInactiveTimeout);
+				lockToken = renewLockToken(taskName, lockToken);
 				
 				// If renew failed - ABORT
 				if (lockToken <= 0) {
 					// ABORT warning (to trace it if needed)
 					/// @TODO - consider an option to silence this or configure logging level (not important as of now due to edge case handling)
-					System.err.println("WARNING (RunnableTaskManager, taskName=" + taskName
-						+ ") - Aborting a running task, due to lock token renewal failure, lockToken = "
-						+ lockToken);
+					log()
+						.warning(
+							"WARNING (taskName="
+								+ taskName
+								+ ") - Aborting a running task, due to lock token renewal failure, lockToken = "
+								+ lockToken);
 					
 					// Trigger an interrupt
 					futureObj.cancel(true);
@@ -225,18 +294,45 @@ public class RunnableTaskManager extends ModuleStructure {
 			
 			// Succesful execution and join
 			return true;
-		} catch (ExecutionException e) {
-			// Exception occured, return false
-			return false;
-		} catch (InterruptedException e) {
-			// Interrupt occured, return false
-			return false;
+		} catch (Exception e) {
+			// Exception occured =[
+			log()
+				.warning( //
+					"-----------------------------------------------------------------------------------------------"
+						+ "\n WARNING (taskName="
+						+ taskName
+						+ ") - Uncaught exception : "
+						+ e.getMessage()
+						+ "\n !!! Note that the 'backgroundProcess' should be designed to never throw an exception,"
+						+ "\n !!! As it will simply be ignored and diverted into the logs (with this message)"
+						+ "\n-----------------------------------------------------------------------------------------------"
+						+ "\n"
+						+ picoded.core.exception.ExceptionUtils.getStackTrace(e) //
+						+ "\n-----------------------------------------------------------------------------------------------");
 		} finally {
 			// Attempt to release the lockToken, if its valid
-			if (lockToken > 0) {
-				lockManager.returnLockToken(taskName, lockToken);
+			try {
+				if (lockToken > 0) {
+					lockManager.returnLockToken(taskName, lockToken);
+				}
+			} catch (Exception e) {
+				// Exception occured =[
+				log()
+					.warning( //
+						"-----------------------------------------------------------------------------------------------"
+							+ "\n WARNING (taskName="
+							+ taskName
+							+ ") - returnLockToken exception : "
+							+ e.getMessage()
+							+ "\n-----------------------------------------------------------------------------------------------"
+							+ "\n"
+							+ picoded.core.exception.ExceptionUtils.getStackTrace(e) //
+							+ "\n-----------------------------------------------------------------------------------------------");
 			}
 		}
+		
+		// I dunno how it reached here, but it probably means things went bad
+		return false;
 	}
 	
 	//----------------------------------------------------------------
@@ -258,7 +354,7 @@ public class RunnableTaskManager extends ModuleStructure {
 		Runnable runner = getRunnable_orThrowException(taskName);
 		
 		// Task exist, lets get a lock on it
-		long lockToken = lockManager.issueLockToken(taskName, taskInactiveTimeout);
+		long lockToken = issueLockToken(taskName);
 		
 		// Lock failed, return false
 		if (lockToken <= 0) {
@@ -286,6 +382,9 @@ public class RunnableTaskManager extends ModuleStructure {
 	
 	/**
 	 * Try to execute all runnable task, blocks till its completed.
+	 * 
+	 * Tasks are executed seqeuntially.
+	 * Task are skipped if they have an existing lock.
 	 */
 	public void tryAllRunnableTask() {
 		// Get list of objects
