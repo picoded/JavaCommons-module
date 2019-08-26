@@ -231,6 +231,22 @@ public class RunnableTaskManager extends ModuleStructure {
 	}
 	
 	/**
+	 * [To be extended for - RunnableTaskCluster]
+	 * 
+	 * Release a previously issued lock
+	 * 
+	 * See: LockTokenManager.returnLockToken
+	 * 
+	 * @param taskName               `lockID` in LockTokenManager
+	 * @param lockToken              `originalToken` in LockTokenManager
+	 * 
+	 * @return  renewLockToken result
+	 */
+	protected void returnLockToken(String taskName, long lockToken) {
+		lockManager.returnLockToken(taskName, lockToken);
+	}
+	
+	/**
 	 * Given a previously initialized lockToken, taskName, and runner
 	 * Does the continous relocking and "thread sleep loop", till the task is complete.
 	 * 
@@ -313,7 +329,7 @@ public class RunnableTaskManager extends ModuleStructure {
 			// Attempt to release the lockToken, if its valid
 			try {
 				if (lockToken > 0) {
-					lockManager.returnLockToken(taskName, lockToken);
+					returnLockToken(taskName, lockToken);
 				}
 			} catch (Exception e) {
 				// Exception occured =[
@@ -340,6 +356,24 @@ public class RunnableTaskManager extends ModuleStructure {
 	//  Task execution
 	//
 	//----------------------------------------------------------------
+	
+	/**
+	 * Checks if the task is runnable, note that due to the async nature of this request,
+	 * you cannot gurantee that isRunnableTask remains true / false after evaluation.
+	 * 
+	 * You can only gurantee its state at its point of execution.
+	 * 
+	 * This is designed to facilitate more complex fail-fast logic flows with complex lock operations.
+	 * 
+	 * Note it is NOT requried to use this inconjuncture executeRunnableTask - as this would already be
+	 * optimized for fail fast mechanics, with better lock/failover timings/performance internally.
+	 * 
+	 * @param taskName
+	 * @return false, if task is not runnable (true - does not gurantee runnability)
+	 */
+	public boolean isRunnableTask(String taskName) {
+		return lockManager.isLocked(taskName);
+	}
 	
 	/**
 	 * Executes a previously registered task, only if lock was succesfully acquired
