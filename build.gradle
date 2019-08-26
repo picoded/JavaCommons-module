@@ -221,9 +221,9 @@ test {
 	if (project.hasProperty('maxParallelForks')) {
 		maxParallelForks = project.maxParallelForks as int
 	} else {
-		// As our test tends to be io-blocked rather then cpu
-		// we will run more tests in parallels
-		maxParallelForks = (Runtime.runtime.availableProcessors() * 2) as int
+		// Lets configure this to be equal the number of threads, to make
+		// RunnableTaskCluster more reliable
+		maxParallelForks = (Runtime.runtime.availableProcessors()) as int
 	}
 	
 	// Set up the number of tests per fork

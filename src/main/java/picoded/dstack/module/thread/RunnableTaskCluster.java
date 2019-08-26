@@ -36,6 +36,7 @@ class RunnableTaskCluster extends RunnableTaskClusterBase {
 	 **/
 	public RunnableTaskCluster(CommonStack inStack, String inName) {
 		super(inStack, inName);
+		setupBackgroundExecutor();
 	}
 	
 	/**
@@ -46,6 +47,7 @@ class RunnableTaskCluster extends RunnableTaskClusterBase {
 	 **/
 	public RunnableTaskCluster(DataObjectMap inTaskMap, KeyLongMap inLockMap) {
 		super(inTaskMap, inLockMap);
+		setupBackgroundExecutor();
 	}
 	
 	//----------------------------------------------------------------
@@ -97,4 +99,35 @@ class RunnableTaskCluster extends RunnableTaskClusterBase {
 		executorService.scheduleWithFixedDelay(runTask, 1l, 1l, TimeUnit.MILLISECONDS);
 	}
 	
+	/**
+	 * Does the immediate shutdown of the task executor
+	 * To facilitate garbage collection, etc
+	 */
+	public void shutdownTaskExecutor() {
+		executorService.shutdownNow();
+	}
+
+	//----------------------------------------------------------------
+	//
+	//  Minimum delay controls
+	//
+	//----------------------------------------------------------------
+	
+	/**
+	 * @return minimal delay interval between executor checks and execution.
+	 * This typically kicks in when minimum to no task were executed, to prevent wasted "CPU" cycles on no task
+	 */
+	public long minimumExecutorDelay() {
+		return minimumDelay;
+	}
+	
+	/**
+	 * Configure the minimum executor delay, note that this might only kick in the next cycle if there are race conditions.
+	 * 
+	 * @param delay in between execution cycles - the minimum is 1 ms
+	 * @return
+	 */
+	public long minimumExecutorDelay(long delay) {
+		return minimumDelay = Math.min(1l, delay);
+	}
 }

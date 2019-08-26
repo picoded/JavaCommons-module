@@ -179,6 +179,17 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	}
 	
 	/**
+	 * Schedule a runnable, with minimum interval, minDelay is set as 1l
+	 * 
+	 * @param taskName          to register as
+	 * @param runner            runner to use
+	 * @param minIntervalRate   minimum interval between task runs in milliseconds
+	 */
+	public void scheduleRunnableTask(String taskName, Runnable runner, long minIntervalRate) {
+		scheduleRunnableTask(taskName, runner, minIntervalRate, 1l);
+	}
+
+	/**
 	 * Returns true, if taskName is configured with a task schedule
 	 * 
 	 * @param taskName
@@ -721,6 +732,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		
 		// Iterate the taskSet - ant attempt to run each one of them
 		for (String taskName : taskSet) {
+			System.out.println("Trying to execute : "+taskName);
 			executeRunnableTask(taskName);
 		}
 	}
