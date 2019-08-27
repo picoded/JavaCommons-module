@@ -9,6 +9,7 @@ import picoded.dstack.module.*;
 import picoded.dstack.*;
 import picoded.core.common.MSLongTime;
 import picoded.core.conv.*;
+import picoded.core.struct.query.*;
 
 /**
  * Extends RunnableTaskManager 
@@ -750,4 +751,45 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		}
 	}
 	
+	// taskMap
+
+	//----------------------------------------------------------------
+	//
+	//  Task status query
+	//
+	//----------------------------------------------------------------
+	
+	/**
+	 * Get and return a list of running tasks, sorted by the orderBY string
+	 * 
+	 * @param orderBy  sorting to perform, default to name if null or blank
+	 * 
+	 * @return list of task execution status (stored in central store)
+	 */
+	public List<Map<String,Object>> getRunningTaskList(String orderBy) {
+		// Result list
+		List<Map<String,Object>> ret = new ArrayList<>();
+
+		// Get the task array and iterate it
+		Collection<DataObject> taskArray = taskMap.values();
+		for( DataObject obj : taskArray ) {
+			// Prepare return result
+			ret.add( new HashMap<String,Object>(obj) );
+
+			// Update OID cache
+			cache_taskOIDMap.put( obj.getString("name"), obj._oid() );
+		}
+
+		// Prepare the orderBy
+		if(orderBy == null || orderBy.length() <= 0) {
+			orderBy = "name";
+		}
+		OrderBy sorter = new OrderBy(orderBy);
+
+		// Apply the sorting
+		Collections.sort(ret, sorter);
+
+		// Return it
+		return ret;
+	}
 }
