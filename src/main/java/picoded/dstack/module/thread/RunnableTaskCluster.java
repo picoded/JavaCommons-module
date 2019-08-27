@@ -20,7 +20,7 @@ import picoded.core.conv.*;
  * which will automatically execute all scheduled runnable tasks
  * distributed across all its instances (synced via the CommonStack)
  */
-class RunnableTaskCluster extends RunnableTaskClusterBase {
+public class RunnableTaskCluster extends RunnableTaskClusterBase {
 	
 	//----------------------------------------------------------------
 	//

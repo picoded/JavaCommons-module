@@ -67,7 +67,7 @@ public class RunnableTaskCluster_test extends BaseTestStack {
 		// Counter to increment
 		final AtomicInteger testCount = new AtomicInteger(0);
 		assertEquals(0, testCount.get());
-		
+
 		// Task to run
 		testObj.scheduleRunnableTask("hello", () -> {
 			testCount.incrementAndGet();
