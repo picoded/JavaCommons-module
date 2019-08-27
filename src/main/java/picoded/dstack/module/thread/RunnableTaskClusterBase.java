@@ -613,6 +613,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		cache_lastKnownTaskUpdateMap.put(taskName, now);
 		if (setStartTime) {
 			ret.put("lastStartTime", now);
+			ret.put("runCount", ret.getLong("runCount", 0) + 1L);
 			cache_lastKnownTaskStartMap.put(taskName, now);
 		}
 		ret.put("status", status);
