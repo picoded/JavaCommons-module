@@ -143,7 +143,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	// 	if (_hostAddress != null) {
 	// 		return _hostAddress;
 	// 	}
-		
+	
 	// 	// Lets get it
 	// 	try {
 	// 		InetAddress host = InetAddress.getLocalHost();
@@ -152,7 +152,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	// 		// Host address fetch failed
 	// 		_hostAddress = "unknown";
 	// 	}
-		
+	
 	// 	// Return the configured host address
 	// 	return _hostAddress;
 	// }
@@ -188,7 +188,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	public void scheduleRunnableTask(String taskName, Runnable runner, long minIntervalRate) {
 		scheduleRunnableTask(taskName, runner, minIntervalRate, 1l);
 	}
-
+	
 	/**
 	 * Returns true, if taskName is configured with a task schedule
 	 * 
@@ -340,7 +340,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		long lastUpdate = cache_lastKnownTaskUpdateMap.getOrDefault(taskName, 0l);
 		
 		//System.out.println("Evaluating isRunnableTask_validateCachedTimestamp - now/start/update "+now+"/"+lastStart+"/"+lastUpdate);
-
+		
 		// Fast fail any invalid start / update timings
 		if (lastStart > 0l) {
 			if (now < (lastStart + intervalMap.getOrDefault(taskName, 0l))) {
@@ -445,7 +445,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	protected boolean isRunnableTask_cacheOnly_withoutLockCheck_norStrictScheduleCheck(
 		String taskName) {
 		// Cached timestamp is invalid - return false
-		if ( isRunnableTask_validateCachedTimestamp(taskName) == false ) {
+		if (isRunnableTask_validateCachedTimestamp(taskName) == false) {
 			//System.out.println("Cache validation failed");
 			return false;
 		}
@@ -453,11 +453,11 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		DataObject taskObj = getCachedTaskObject(taskName);
 		if (taskObj != null) {
 			//System.out.println("Found task object - lets validate");
-			if ( isRunnableTask_validateTaskObject(taskName, taskObj) == false ) {
+			if (isRunnableTask_validateTaskObject(taskName, taskObj) == false) {
 				return false;
 			}
 		}
-
+		
 		//System.out.println("Should return true");
 		// Return true, as all checks above passed
 		return true;
@@ -477,7 +477,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		if (isRunnableTask_cacheOnly_withoutLockCheck_norStrictScheduleCheck(taskName) == false) {
 			return false;
 		}
-
+		
 		// Does the original "isLocked"
 		return super.isRunnableTask(taskName);
 	}
@@ -602,7 +602,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	 * @param setStartTime   if true, also update the "lastStartTime"
 	 * @return
 	 */
-	protected DataObject updateTaskObject(String taskName, boolean setStartTime) {
+	protected DataObject updateTaskObject(String taskName, boolean setStartTime, String status) {
 		// DataObject to return
 		DataObject ret = getOrIssueTaskObject(taskName);
 		
@@ -614,11 +614,12 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 			ret.put("lastStartTime", now);
 			cache_lastKnownTaskStartMap.put(taskName, now);
 		}
-		ret.saveAll();
-
+		ret.put("status", status);
+		ret.saveDelta();
+		
 		// And the OID mapping
 		cache_taskOIDMap.put(taskName, ret._oid());
-
+		
 		// Return the task object
 		return ret;
 	}
@@ -638,7 +639,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		
 		// Lets get / issue the task object with a valid lock
 		if (ret > 0) {
-			updateTaskObject(taskName, true);
+			updateTaskObject(taskName, true, "started");
 		}
 		
 		// Return the lock token
@@ -660,7 +661,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		
 		// Lets update the task object with a valid lock
 		if (ret > 0) {
-			updateTaskObject(taskName, false);
+			updateTaskObject(taskName, false, "running");
 		}
 		
 		// Return the result
@@ -680,7 +681,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	protected void returnLockToken(String taskName, long lockToken) {
 		// Lets do the update first, before the return
 		if (lockToken > 0) {
-			updateTaskObject(taskName, false);
+			updateTaskObject(taskName, false, "completed");
 		}
 		
 		// Execute with results

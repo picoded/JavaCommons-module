@@ -58,17 +58,17 @@ public class RunnableTaskCluster_test extends BaseTestStack {
 	public static class AtomicIntegerWrapper {
 		AtomicInteger testCount = new AtomicInteger(0);
 	}
-
+	
 	@Test
 	public void backgroundTask() throws Exception {
 		// Lets configure min delay to a small number (speed up testing accuracy / process)
 		testObj.minimumExecutorDelay(200);
 		Thread.sleep(5000);
-
+		
 		// Counter to increment
 		final AtomicInteger testCount = new AtomicInteger(0);
 		assertEquals(0, testCount.get());
-
+		
 		// Task to run
 		testObj.scheduleRunnableTask("hello", () -> {
 			testCount.incrementAndGet();
@@ -81,7 +81,7 @@ public class RunnableTaskCluster_test extends BaseTestStack {
 		// Unfortunately in the unit testin scenerio - this is pretty much a guarentee to occur
 		// as we spin up as many test threads as there are cores
 		Thread.sleep(3000);
-		System.out.println("Asserting for non null value : "+testCount.get());
+		System.out.println("Asserting for non null value : " + testCount.get());
 		assertNotEquals(0, testCount.get());
 	}
 	

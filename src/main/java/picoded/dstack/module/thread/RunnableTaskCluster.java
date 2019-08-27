@@ -107,7 +107,7 @@ public class RunnableTaskCluster extends RunnableTaskClusterBase {
 	public void shutdownTaskExecutor() {
 		executorService.shutdownNow();
 	}
-
+	
 	//----------------------------------------------------------------
 	//
 	//  Minimum delay controls
