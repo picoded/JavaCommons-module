@@ -372,7 +372,7 @@ public class RunnableTaskManager extends ModuleStructure {
 	 * @return false, if task is not runnable (true - does not gurantee runnability)
 	 */
 	public boolean isRunnableTask(String taskName) {
-		return lockManager.isLocked(taskName);
+		return lockManager.isLocked(taskName) == false;
 	}
 	
 	/**

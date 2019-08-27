@@ -62,7 +62,8 @@ public class RunnableTaskCluster_test extends BaseTestStack {
 	@Test
 	public void backgroundTask() throws Exception {
 		// Lets configure min delay to a small number (speed up testing accuracy / process)
-		testObj.minimumExecutorDelay(100l);
+		testObj.minimumExecutorDelay(200);
+		Thread.sleep(5000);
 
 		// Counter to increment
 		final AtomicInteger testCount = new AtomicInteger(0);
@@ -72,15 +73,15 @@ public class RunnableTaskCluster_test extends BaseTestStack {
 		testObj.scheduleRunnableTask("hello", () -> {
 			testCount.incrementAndGet();
 			System.out.println("Doing increment");
-		}, 500l);
+		}, 500);
 		
 		// Test it - with a generious sleep - to prevent race condition
 		// as the spec is minimum interval (when there is CPU) - not a gurantee
 		//
 		// Unfortunately in the unit testin scenerio - this is pretty much a guarentee to occur
 		// as we spin up as many test threads as there are cores
-		Thread.sleep(2000l);
-		System.out.println("Asserting for non null value");
+		Thread.sleep(3000);
+		System.out.println("Asserting for non null value : "+testCount.get());
 		assertNotEquals(0, testCount.get());
 	}
 	

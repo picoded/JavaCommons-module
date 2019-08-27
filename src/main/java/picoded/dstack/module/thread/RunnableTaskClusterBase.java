@@ -114,48 +114,48 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	 */
 	protected ConcurrentHashMap<String, Long> delayMap = new ConcurrentHashMap<>();
 	
-	//----------------------------------------------------------------
-	//
-	//  Internal Manager identifier setup
-	//
-	//----------------------------------------------------------------
+	// //----------------------------------------------------------------
+	// //
+	// //  Internal Manager identifier setup
+	// //
+	// //----------------------------------------------------------------
 	
-	/**
-	 * The current RunnableTaskManager GUID, initialized on instance construction
-	 */
-	protected String _managerID = GUID.base58();
+	// /**
+	//  * The current RunnableTaskManager GUID, initialized on instance construction
+	//  */
+	// protected String _managerID = GUID.base58();
 	
-	/**
-	 * @return the unique base 58 GUID of the task manager
-	 */
-	public String getManagerID() {
-		return _managerID;
-	}
+	// /**
+	//  * @return the unique base 58 GUID of the task manager
+	//  */
+	// public String getManagerID() {
+	// 	return _managerID;
+	// }
 	
-	// Server host address memoizer caching
-	protected String _hostAddress = null;
+	// // Server host address memoizer caching
+	// protected String _hostAddress = null;
 	
-	/**
-	 * @return the server instance various host address, note that this maybe cached
-	 */
-	public String getHostAddress() {
-		// Return cached address
-		if (_hostAddress != null) {
-			return _hostAddress;
-		}
+	// /**
+	//  * @return the server instance various host address, note that this maybe cached
+	//  */
+	// public String getHostAddress() {
+	// 	// Return cached address
+	// 	if (_hostAddress != null) {
+	// 		return _hostAddress;
+	// 	}
 		
-		// Lets get it
-		try {
-			InetAddress host = InetAddress.getLocalHost();
-			_hostAddress = "" + host.getHostAddress();
-		} catch (Exception e) {
-			// Host address fetch failed
-			_hostAddress = "unknown";
-		}
+	// 	// Lets get it
+	// 	try {
+	// 		InetAddress host = InetAddress.getLocalHost();
+	// 		_hostAddress = "" + host.getHostAddress();
+	// 	} catch (Exception e) {
+	// 		// Host address fetch failed
+	// 		_hostAddress = "unknown";
+	// 	}
 		
-		// Return the configured host address
-		return _hostAddress;
-	}
+	// 	// Return the configured host address
+	// 	return _hostAddress;
+	// }
 	
 	//----------------------------------------------------------------
 	//
@@ -174,8 +174,8 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	public void scheduleRunnableTask(String taskName, Runnable runner, long minIntervalRate,
 		long minDelay) {
 		registerRunnableTask(taskName, runner);
-		intervalMap.put(taskName, Math.max(0l, minIntervalRate));
-		delayMap.put(taskName, Math.max(0l, minDelay));
+		intervalMap.put(taskName, Math.max(1l, minIntervalRate));
+		delayMap.put(taskName, Math.max(1l, minDelay));
 	}
 	
 	/**
@@ -339,6 +339,8 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		long lastStart = cache_lastKnownTaskStartMap.getOrDefault(taskName, 0l);
 		long lastUpdate = cache_lastKnownTaskUpdateMap.getOrDefault(taskName, 0l);
 		
+		//System.out.println("Evaluating isRunnableTask_validateCachedTimestamp - now/start/update "+now+"/"+lastStart+"/"+lastUpdate);
+
 		// Fast fail any invalid start / update timings
 		if (lastStart > 0l) {
 			if (now < (lastStart + intervalMap.getOrDefault(taskName, 0l))) {
@@ -352,6 +354,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		}
 		
 		// Return valid =]
+		//System.out.println("Evaluating isRunnableTask_validateCachedTimestamp - true");
 		return true;
 	}
 	
@@ -411,10 +414,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	 * @param taskObj 
 	 * @return false, if task is not runnable (true - does not gurantee runnability)
 	 */
-	protected boolean isRunnableTask_validateTaskObject(DataObject taskObj) {
-		// Get task name
-		String taskName = taskObj.getString("name");
-		
+	protected boolean isRunnableTask_validateTaskObject(String taskName, DataObject taskObj) {
 		// Get existing lastStart / update timestamp
 		long cache_lastStart = cache_lastKnownTaskStartMap.getOrDefault(taskName, 0l);
 		long cache_lastUpdate = cache_lastKnownTaskUpdateMap.getOrDefault(taskName, 0l);
@@ -445,16 +445,20 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	protected boolean isRunnableTask_cacheOnly_withoutLockCheck_norStrictScheduleCheck(
 		String taskName) {
 		// Cached timestamp is invalid - return false
-		if (!isRunnableTask_validateCachedTimestamp(taskName)) {
+		if ( isRunnableTask_validateCachedTimestamp(taskName) == false ) {
+			//System.out.println("Cache validation failed");
 			return false;
 		}
 		// Get a cached task object
 		DataObject taskObj = getCachedTaskObject(taskName);
 		if (taskObj != null) {
-			if (!isRunnableTask_validateTaskObject(taskObj)) {
+			//System.out.println("Found task object - lets validate");
+			if ( isRunnableTask_validateTaskObject(taskName, taskObj) == false ) {
 				return false;
 			}
 		}
+
+		//System.out.println("Should return true");
 		// Return true, as all checks above passed
 		return true;
 	}
@@ -470,9 +474,10 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		isScheduledTask_strict(taskName);
 		
 		// Check using the cache only, return false early if needed
-		if (!isRunnableTask_cacheOnly_withoutLockCheck_norStrictScheduleCheck(taskName)) {
+		if (isRunnableTask_cacheOnly_withoutLockCheck_norStrictScheduleCheck(taskName) == false) {
 			return false;
 		}
+
 		// Does the original "isLocked"
 		return super.isRunnableTask(taskName);
 	}
@@ -581,6 +586,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		// Alrighto, time to make a new object
 		ret = taskMap.newEntry();
 		ret.put("name", taskName);
+		ret.saveAll();
 		
 		// Return the task object
 		return ret;
@@ -603,11 +609,16 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		// Get the current timestamp, and update it
 		long now = System.currentTimeMillis();
 		ret.put("lastUpdateTime", now);
+		cache_lastKnownTaskUpdateMap.put(taskName, now);
 		if (setStartTime) {
 			ret.put("lastStartTime", now);
+			cache_lastKnownTaskStartMap.put(taskName, now);
 		}
-		ret.saveDelta();
-		
+		ret.saveAll();
+
+		// And the OID mapping
+		cache_taskOIDMap.put(taskName, ret._oid());
+
 		// Return the task object
 		return ret;
 	}
@@ -710,13 +721,15 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	 */
 	public boolean executeRunnableTask(String taskName, boolean ignoreSchedule) {
 		// Lets fail fast with the schedule first
-		if (!ignoreSchedule) {
-			if (!isRunnableTask_cacheOnly_withoutLockCheck_norStrictScheduleCheck(taskName)) {
+		if (ignoreSchedule == false) {
+			if (isRunnableTask_cacheOnly_withoutLockCheck_norStrictScheduleCheck(taskName) == false) {
+				//System.out.println("Skipping execution : "+taskName);
 				return false;
 			}
 		}
 		
 		// Execute the runnable, and block accordingly
+		//System.out.println("Trying to execute : "+taskName);
 		return super.executeRunnableTask(taskName);
 	}
 	
@@ -732,8 +745,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		
 		// Iterate the taskSet - ant attempt to run each one of them
 		for (String taskName : taskSet) {
-			System.out.println("Trying to execute : "+taskName);
-			executeRunnableTask(taskName);
+			executeRunnableTask(taskName, false);
 		}
 	}
 	

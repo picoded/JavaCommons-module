@@ -81,6 +81,7 @@ public class RunnableTaskCluster extends RunnableTaskClusterBase {
 		// If time taken, is less then minimum delay - induce it
 		if (timeTaken < minimumDelay) {
 			try {
+				// System.out.println("Doing min delay sleep : "+(minimumDelay - timeTaken));
 				Thread.sleep(minimumDelay - timeTaken);
 			} catch (InterruptedException e) {
 				// does nothing
@@ -128,6 +129,6 @@ public class RunnableTaskCluster extends RunnableTaskClusterBase {
 	 * @return
 	 */
 	public long minimumExecutorDelay(long delay) {
-		return minimumDelay = Math.min(1l, delay);
+		return minimumDelay = Math.max(1l, delay);
 	}
 }
