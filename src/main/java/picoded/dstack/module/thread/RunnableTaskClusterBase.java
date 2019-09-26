@@ -7,6 +7,7 @@ import java.security.SecureRandom;
 
 import picoded.dstack.module.*;
 import picoded.dstack.*;
+import picoded.dstack.connector.jsql.JSqlException;
 import picoded.core.common.MSLongTime;
 import picoded.core.conv.*;
 import picoded.core.struct.query.*;
@@ -617,7 +618,14 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 			cache_lastKnownTaskStartMap.put(taskName, now);
 		}
 		ret.put("status", status);
-		ret.saveDelta();
+
+		// Due to the high "lock" rate, saveDelta is 
+		// retried on failure
+		try {
+			ret.saveDelta();
+		} catch(JSqlException e) {
+			ret.saveDelta();
+		}
 		
 		// And the OID mapping
 		cache_taskOIDMap.put(taskName, ret._oid());
