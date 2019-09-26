@@ -277,7 +277,7 @@ public class RunnableTaskManager extends ModuleStructure {
 				try {
 					// futureObj.get(1, TimeUnit.MILLISECONDS);
 					Thread.sleep(taskUpdateInterval);
-				} catch (TimeoutException e) {
+				} catch (Exception e) {
 					// does nothing on timeout exception
 				}
 				
