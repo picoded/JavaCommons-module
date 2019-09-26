@@ -780,9 +780,10 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		List<Map<String,Object>> ret = new ArrayList<>();
 
 		// Get the task array and iterate it
-		Collection<DataObject> taskArray = taskMap.values();
-		for( DataObject obj : taskArray ) {
+		Set<String> keySet = taskMap.keySet();
+		for( String key : keySet ) {
 			// Prepare return result
+			DataObject obj = taskMap.get(key);
 			ret.add( new HashMap<String,Object>(obj) );
 
 			// Update OID cache
