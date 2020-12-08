@@ -515,7 +515,7 @@ public class MembershipTable extends ModuleStructure {
 			memberQueryObj = Query.build(memberQuery, memberQueryArgs);
 		}
 		if (relationshipQuery != null) {
-			relationshipQueryObj = Query.build(memberQuery, memberQueryArgs);
+			relationshipQueryObj = Query.build(relationshipQuery, relationshipQueryArgs);
 		}
 		
 		// The relationship listing (to return?)
