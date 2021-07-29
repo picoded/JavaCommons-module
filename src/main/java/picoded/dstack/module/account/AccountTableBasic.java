@@ -127,11 +127,17 @@ public class AccountTableBasic extends AccountTableCore {
 						// Get the cookie domain to support
 						appliedCookieDomain = domain;
 
-						// Append the port number if present
-						// this is to support the restrictions put in place by the chrome browser
-						if( portNumberStr != null && portNumberStr.length() > 0 ) {
-							appliedCookieDomain += ":"+portNumberStr;
-						}
+						// // [Not enabled due to RFC limitations] Append the port number if present
+						// // this is to support the restrictions put in place by the chrome browser
+						// //
+						// // On further testing, this is found to be breaking the specification
+						// // and will be rejected by some server programs (tomcat), proxies, etc.
+						// // we shall skip this step (and possibly break chrome in some cases)
+						// // in favour of following the specification - or until this gets rectified.
+						//
+						// if( portNumberStr != null && portNumberStr.length() > 0 ) {
+						// 	appliedCookieDomain += ":"+portNumberStr;
+						// }
 
 						// Save the result and proceed forward
 						break;
