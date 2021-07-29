@@ -88,6 +88,44 @@ public class AccountTableBasic extends AccountTableCore {
 		// Note that this cookie IGNORES isHttpOnly setting
 		cookieJar[3] = new javax.servlet.http.Cookie(cookiePrefix + "exp", String.valueOf(expireTime));
 		
+		//------------------------------------------------------------
+		// Derive the cookie domain to be applied
+		//------------------------------------------------------------
+
+		// Cookie domain handling
+		String appliedCookieDomain = null;
+
+		// Set a strict cookie domain (if configured)
+		// this is the default, if its configured
+		if (cookieDomain != null && cookieDomain.length() > 0) {
+			appliedCookieDomain = cookieDomain;
+		}
+		
+		// Check the origin hostname
+		// against the cookieDomainList
+		if (crossOriginDomainList != null && crossOriginDomainList.size() > 0) {
+			// get the origin hostname
+			String originHostname = request.getHeader("Origin");
+			originHostname = originHostname.replaceAll("http(s)*:\\/\\/","");
+			originHostname = originHostname.replaceAll("/.*","");
+			originHostname = originHostname.replaceAll(":.*","");
+
+			// Only process the origin hostname if it present
+			if( originHostname != null && originHostname.length() > 0 ) {
+				// And against the configured domain list
+				for(String domain : crossOriginDomainList) {
+					if( originHostname.endsWith(domain) ) {
+						appliedCookieDomain = domain;
+						break;
+					}
+				}
+			}
+		}
+		
+		//------------------------------------------------------------
+		// Applying max age, security settings, and domain settings
+		//------------------------------------------------------------
+
 		// Storing the cookie jar with the browser
 		for (int a = 0; a < noOfCookies; ++a) {
 			
@@ -124,8 +162,8 @@ public class AccountTableBasic extends AccountTableCore {
 			}
 			
 			// Set a strict cookie domain
-			if (cookieDomain != null && cookieDomain.length() > 0) {
-				cookieJar[a].setDomain(cookieDomain);
+			if (appliedCookieDomain != null) {
+				cookieJar[a].setDomain(appliedCookieDomain);
 			}
 			
 			// Actually inserts the cookie

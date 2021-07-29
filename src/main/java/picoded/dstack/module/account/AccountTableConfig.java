@@ -93,7 +93,18 @@ abstract class AccountTableConfig extends ModuleStructure implements
 	public String cookiePrefix = "account_";
 	
 	/**
-	 * Sets teh cookie domain, defaults is null
+	 * crossOriginDomainList, which overwrites the cookieDomain
+	 * for requests that matches against specific Origin requests
+	 *
+	 * Default is null (matches nothing)
+	 **/
+	public List<String> crossOriginDomainList = null;
+	
+	/**
+	 * The main cookie domain, this is configured, if it does not match against cookieDomainList
+	 * regardless of the requesting source
+	 *
+	 * Default is null (matches nothing)
 	 **/
 	public String cookieDomain = null;
 	
