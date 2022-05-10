@@ -423,9 +423,12 @@ public class RunnableTaskManager extends ModuleStructure {
 	 */
 	public void tryAllRunnableTask() {
 		// Get list of objects
-		Set<String> taskSet = new HashSet<>(runnableMap.keySet());
+		List<String> taskSet = new ArrayList<>(runnableMap.keySet());
 		
-		// Iterate the taskSet - ant attempt to run each one of them
+		// Shuffle it
+		Collections.shuffle(taskSet);
+		
+		// Iterate the taskSet - and attempt to run each one of them
 		for (String taskName : taskSet) {
 			executeRunnableTask(taskName);
 		}
