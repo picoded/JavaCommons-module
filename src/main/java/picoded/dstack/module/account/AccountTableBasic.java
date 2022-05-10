@@ -91,10 +91,10 @@ public class AccountTableBasic extends AccountTableCore {
 		//------------------------------------------------------------
 		// Derive the cookie domain to be applied
 		//------------------------------------------------------------
-
+		
 		// Cookie domain handling
 		String appliedCookieDomain = null;
-
+		
 		// Set a strict cookie domain (if configured)
 		// this is the default, if its configured
 		if (cookieDomain != null && cookieDomain.length() > 0) {
@@ -106,27 +106,27 @@ public class AccountTableBasic extends AccountTableCore {
 		if (crossOriginDomainList != null && crossOriginDomainList.size() > 0) {
 			// get the origin hostname with port, and protocol
 			String originHostnameWithPort = request.getHeader("Origin");
-
+			
 			// Only process the origin hostname if it present
-			if( originHostnameWithPort != null && originHostnameWithPort.length() > 0 ) {
+			if (originHostnameWithPort != null && originHostnameWithPort.length() > 0) {
 				// Remove any erronous protocol and psth strings
-				originHostnameWithPort = originHostnameWithPort.replaceAll(".*:\\/\\/","");
-				originHostnameWithPort = originHostnameWithPort.replaceAll("\\/.*","");
-
+				originHostnameWithPort = originHostnameWithPort.replaceAll(".*:\\/\\/", "");
+				originHostnameWithPort = originHostnameWithPort.replaceAll("\\/.*", "");
+				
 				// Get the origin hostname, without port
 				String originHostnameWithoutPort = originHostnameWithPort;
 				String portNumberStr = null;
-				if( originHostnameWithoutPort.indexOf(":") > 0 ) {
-					originHostnameWithoutPort = originHostnameWithPort.replaceAll(":.*","");
-					portNumberStr = originHostnameWithPort.replaceAll(".*:","");
+				if (originHostnameWithoutPort.indexOf(":") > 0) {
+					originHostnameWithoutPort = originHostnameWithPort.replaceAll(":.*", "");
+					portNumberStr = originHostnameWithPort.replaceAll(".*:", "");
 				}
-
+				
 				// And against the configured domain list
-				for(String domain : crossOriginDomainList) {
-					if( originHostnameWithoutPort.endsWith(domain) ) {
+				for (String domain : crossOriginDomainList) {
+					if (originHostnameWithoutPort.endsWith(domain)) {
 						// Get the cookie domain to support
 						appliedCookieDomain = domain;
-
+						
 						// // [Not enabled due to RFC limitations] Append the port number if present
 						// // this is to support the restrictions put in place by the chrome browser
 						// //
@@ -138,7 +138,7 @@ public class AccountTableBasic extends AccountTableCore {
 						// if( portNumberStr != null && portNumberStr.length() > 0 ) {
 						// 	appliedCookieDomain += ":"+portNumberStr;
 						// }
-
+						
 						// Save the result and proceed forward
 						break;
 					}
@@ -149,7 +149,7 @@ public class AccountTableBasic extends AccountTableCore {
 		//------------------------------------------------------------
 		// Applying max age, security settings, and domain settings
 		//------------------------------------------------------------
-
+		
 		// Storing the cookie jar with the browser
 		for (int a = 0; a < noOfCookies; ++a) {
 			

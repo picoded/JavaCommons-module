@@ -618,12 +618,12 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 			cache_lastKnownTaskStartMap.put(taskName, now);
 		}
 		ret.put("status", status);
-
+		
 		// Due to the high "lock" rate, saveDelta is 
 		// retried on failure
 		try {
 			ret.saveDelta();
-		} catch(JSqlException e) {
+		} catch (JSqlException e) {
 			ret.saveDelta();
 		}
 		
@@ -761,7 +761,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	}
 	
 	// taskMap
-
+	
 	//----------------------------------------------------------------
 	//
 	//  Task status query
@@ -775,30 +775,30 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	 * 
 	 * @return list of task execution status (stored in central store)
 	 */
-	public List<Map<String,Object>> getRunningTaskList(String orderBy) {
+	public List<Map<String, Object>> getRunningTaskList(String orderBy) {
 		// Result list
-		List<Map<String,Object>> ret = new ArrayList<>();
-
+		List<Map<String, Object>> ret = new ArrayList<>();
+		
 		// Get the task array and iterate it
 		Set<String> keySet = taskMap.keySet();
-		for( String key : keySet ) {
+		for (String key : keySet) {
 			// Prepare return result
 			DataObject obj = taskMap.get(key);
-			ret.add( new HashMap<String,Object>(obj) );
-
+			ret.add(new HashMap<String, Object>(obj));
+			
 			// Update OID cache
-			cache_taskOIDMap.put( obj.getString("name"), obj._oid() );
+			cache_taskOIDMap.put(obj.getString("name"), obj._oid());
 		}
-
+		
 		// Prepare the orderBy
-		if(orderBy == null || orderBy.length() <= 0) {
+		if (orderBy == null || orderBy.length() <= 0) {
 			orderBy = "name";
 		}
 		OrderBy sorter = new OrderBy(orderBy);
-
+		
 		// Apply the sorting
 		Collections.sort(ret, sorter);
-
+		
 		// Return it
 		return ret;
 	}
