@@ -102,7 +102,7 @@ public abstract class AccountTableCore extends AccountTableConfig {
 		if (oid != null) {
 			String _oid = oid.toString();
 			if (containsKey(_oid)) {
-				return new AccountObject(this, _oid);
+				return new AccountObject(this, _oid, null, false);
 			}
 		}
 		// Account object invalid here
@@ -168,7 +168,7 @@ public abstract class AccountTableCore extends AccountTableConfig {
 	 * This call in some sense is quite, err useless.
 	 **/
 	public AccountObject newEntry() {
-		AccountObject ret = new AccountObject(this, null);
+		AccountObject ret = new AccountObject(this);
 		// ret.saveAll(); //ensures the blank object is now in DB
 		return ret;
 	}

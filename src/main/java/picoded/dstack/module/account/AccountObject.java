@@ -26,24 +26,67 @@ public class AccountObject extends Core_DataObject {
 	 * The original account table
 	 **/
 	protected AccountTable mainTable = null;
-	
+
 	/**
 	 * [INTERNAL USE ONLY]
 	 *
-	 * Cosntructor setup, using an account table,
-	 * and the account GUID
+	 * Get an instance of the account object, generating a unique GUID for it.
+	 * This is used for new account creation.
 	 **/
-	protected AccountObject(AccountTable accTable, String inOID) {
+	protected AccountObject(AccountTable accTable) {
+		super((Core_DataObjectMap) (accTable.accountDataObjectMap));
+		mainTable = (AccountTable) accTable;
+	}
+
+	/**
+	 * [INTERNAL USE ONLY]
+	 *
+	 * Get an instance of the account object, generating a unique GUID for it.
+	 * This is used for new account creation.
+	 **/
+	protected AccountObject(AccountTableCore accTable) {
+		this((AccountTable) accTable);
+	}
+
+	/**
+	 * [INTERNAL USE ONLY]
+	 *
+	 * Get an instance of the account object, with the provided data.
+	 * This is used for fetching account objects with known GUID and data.
+	 **/
+	protected AccountObject(AccountTable accTable, String inOID, Map<String, Object> inRemoteData, boolean isCompletedData) {
 		// Inherit all the default data table methods
-		super((Core_DataObjectMap) (accTable.accountDataObjectMap), inOID);
+		super((Core_DataObjectMap) (accTable.accountDataObjectMap), inOID, inRemoteData, isCompletedData);
 		mainTable = accTable;
+	}
+
+	/**
+	 * [INTERNAL USE ONLY]
+	 *
+	 * Get an instance of the account object, with the provided data.
+	 * This is used for fetching account objects with known GUID and data.
+	 **/
+	protected AccountObject(AccountTableCore accTable, String inOID, Map<String, Object> inRemoteData, boolean isCompletedData) {
+		this((AccountTable) accTable, inOID, inRemoteData, isCompletedData);
 	}
 	
 	/**
 	 * [INTERNAL USE ONLY]
 	 *
-	 * Cosntructor setup, using an account table,
-	 * and the account GUID
+	 * Get an instance of the account object.
+	 * This is used for fetching account objects with known GUID and data.
+	 **/
+	protected AccountObject(AccountTable accTable, String inOID) {
+		// Inherit all the default data table methods
+		super((Core_DataObjectMap) (accTable.accountDataObjectMap), inOID, null, false);
+		mainTable = accTable;
+	}
+
+	/**
+	 * [INTERNAL USE ONLY]
+	 *
+	 * Get an instance of the account object.
+	 * This is used for fetching account objects with known GUID and data.
 	 **/
 	protected AccountObject(AccountTableCore accTable, String inOID) {
 		this((AccountTable) accTable, inOID);
