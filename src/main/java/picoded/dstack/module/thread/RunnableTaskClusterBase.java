@@ -446,13 +446,20 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	 */
 	protected boolean isRunnableTask_cacheOnly_withoutLockCheck_norStrictScheduleCheck(
 		String taskName) {
+		// Get a cached task object
+		DataObject taskObj = getCachedTaskObject(taskName);
+
+		// If task status is explicitly queued, it is runnable immediately
+		if (taskObj != null && "queued".equalsIgnoreCase(taskObj.getString("status", ""))) {
+			return true;
+		}
+
 		// Cached timestamp is invalid - return false
 		if (isRunnableTask_validateCachedTimestamp(taskName) == false) {
 			//System.out.println("Cache validation failed");
 			return false;
 		}
-		// Get a cached task object
-		DataObject taskObj = getCachedTaskObject(taskName);
+
 		if (taskObj != null) {
 			//System.out.println("Found task object - lets validate");
 			if (isRunnableTask_validateTaskObject(taskName, taskObj) == false) {
