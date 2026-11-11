@@ -6,8 +6,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 import java.net.InetAddress;
 import java.security.SecureRandom;
@@ -112,12 +116,23 @@ public class RunnableTaskManager extends ModuleStructure {
 	ExecutorService runnableExecutor = Executors.newCachedThreadPool();
 	
 	/**
-	 * Extends close operations to close all existing runnableExecutors
+	 * Dedicated single-thread ScheduledExecutorService for periodic lock token renewal
+	 * and execution timeout cap enforcement across running tasks.
+	 *
+	 * Decoupling lock renewal monitoring from `runnableExecutor` ensures that worker pool threads
+	 * in fixed-size pools (e.g. `Executors.newFixedThreadPool`) execute task code directly without
+	 * submitting nested child tasks to the same pool, preventing thread pool starvation deadlocks.
+	 */
+	protected ScheduledExecutorService lockRenewalExecutor = Executors.newSingleThreadScheduledExecutor();
+	
+	/**
+	 * Extends close operations to close all existing runnableExecutors and lockRenewalExecutors
 	 */
 	@Override
 	public void close() {
 		super.close();
 		runnableExecutor.shutdownNow();
+		lockRenewalExecutor.shutdownNow();
 	}
 	
 	//----------------------------------------------------------------
@@ -135,6 +150,24 @@ public class RunnableTaskManager extends ModuleStructure {
 	
 	// Interrupt timeout to use
 	protected long taskInterruptTimeout = 15 * MSLongTime.SECOND;
+	
+	// Maximum execution duration timeout cap per task in milliseconds (0 = unlimited)
+	protected long maxTaskExecutionTimeoutMs = 0L;
+
+	/**
+	 * @return maximum execution duration timeout cap in milliseconds
+	 */
+	public long getMaxTaskExecutionTimeoutMs() {
+		return maxTaskExecutionTimeoutMs;
+	}
+
+	/**
+	 * Set the maximum execution duration timeout cap in milliseconds (0 = unlimited)
+	 * @param timeoutMs Maximum timeout cap in milliseconds
+	 */
+	public void setMaxTaskExecutionTimeoutMs(long timeoutMs) {
+		this.maxTaskExecutionTimeoutMs = Math.max(0L, timeoutMs);
+	}
 	
 	//----------------------------------------------------------------
 	//
@@ -247,72 +280,83 @@ public class RunnableTaskManager extends ModuleStructure {
 	}
 	
 	/**
-	 * Given a previously initialized lockToken, taskName, and runner
-	 * Does the continous relocking and "thread sleep loop", till the task is complete.
+	 * Executes a task directly on the current thread while managing background lock token renewals
+	 * and execution duration timeout enforcement.
 	 * 
-	 * This automatically performs an unlock on task complete
+	 * Lifecycle & Invocations:
+	 * - Invoked once per task execution immediately after `issueLockToken(taskName)` successfully acquires a
+	 *   distributed lock token (either during periodic scheduled cluster runs or via manual triggers).
+	 * - While `runner.run()` executes on the current thread, a shared background `lockRenewalExecutor` fires
+	 *   periodically every `taskUpdateInterval` (default 15s) to renew the lock token and check for execution
+	 *   timeout caps (`maxTaskExecutionTimeoutMs`).
+	 * - Automatically releases the lock token via `returnLockToken(...)` upon task completion or failure.
 	 * 
-	 * This function BLOCKS the current thread, till the task is complete. Or if task failed.
+	 * Design Rationale:
+	 * Executing `runner.run()` directly on the current worker thread (rather than submitting a nested sub-task to
+	 * `runnableExecutor`) ensures each task consumes exactly 1 thread pool slot. This prevents thread pool starvation
+	 * deadlocks when `runnableExecutor` is configured as a fixed-size thread pool (e.g., `Executors.newFixedThreadPool(4)`).
+	 * If lock renewal fails or `maxTaskExecutionTimeoutMs` is exceeded, the background monitor interrupts `workerThread`.
 	 * 
-	 * @param taskName     to perform locking renewal on / unlocks on
-	 * @param runThread    thread to actually start, and wait for (to join)
-	 * @param inLockToken  lock token to use for renewal
+	 * @param taskName     Name of the task to execute and perform lock renewals/unlocks on
+	 * @param runner       Runnable containing the actual task execution logic
+	 * @param inLockToken  Distributed lock token issued by `issueLockToken(...)`
 	 * 
-	 * @return true if runnable completes without interruptions
+	 * @return true if the runnable completed successfully without lock loss or timeout interruptions
 	 */
 	protected boolean executeRunnable_withExistingLock(String taskName, Runnable runner,
 		long inLockToken) {
-		// Lock token to use
-		long lockToken = inLockToken;
-		
-		// Lock was succesful, lets run the thread
-		try {
-			// Pass it to the executor, start it, and get the Future object
-			Future<?> futureObj = runnableExecutor.submit(runner);
-			
-			// While its running, does the lock renewals
-			while ((futureObj.isCancelled() || futureObj.isDone()) != true) {
-				
-				// Lets wait for it to complete with a short nap
-				try {
-					// futureObj.get(1, TimeUnit.MILLISECONDS);
-					Thread.sleep(taskUpdateInterval);
-				} catch (Exception e) {
-					// does nothing on timeout exception
+		final long startTime = System.currentTimeMillis();
+		final Thread workerThread = Thread.currentThread();
+
+		final AtomicLong currentLockToken = new AtomicLong(inLockToken);
+		final AtomicBoolean wasAborted = new AtomicBoolean(false);
+
+		// Schedule periodic lock token renewal and execution timeout cap monitoring on background lockRenewalExecutor.
+		// This runs every `taskUpdateInterval` milliseconds while the task runner is executing on `workerThread`.
+		ScheduledFuture<?> renewalFuture = lockRenewalExecutor.scheduleAtFixedRate(() -> {
+			try {
+				// 1. Check for maximum execution duration timeout cap
+				long elapsedTime = System.currentTimeMillis() - startTime;
+				if (maxTaskExecutionTimeoutMs > 0L && elapsedTime > maxTaskExecutionTimeoutMs) {
+					log()
+						.warning(
+							"WARNING (taskName="
+								+ taskName
+								+ ") - Execution time ("
+								+ elapsedTime
+								+ " ms) exceeded maximum timeout cap ("
+								+ maxTaskExecutionTimeoutMs
+								+ " ms). Aborting task...");
+					wasAborted.set(true);
+					workerThread.interrupt(); // Signal the worker thread to stop execution
+					return;
 				}
-				
-				// Renew the token
-				lockToken = renewLockToken(taskName, lockToken);
-				
-				// If renew failed - ABORT
-				if (lockToken <= 0) {
-					// ABORT warning (to trace it if needed)
-					/// @TODO - consider an option to silence this or configure logging level (not important as of now due to edge case handling)
+
+				// 2. Perform lock token renewal in central store / database
+				long renewedToken = renewLockToken(taskName, currentLockToken.get());
+				if (renewedToken <= 0) {
 					log()
 						.warning(
 							"WARNING (taskName="
 								+ taskName
 								+ ") - Aborting a running task, due to lock token renewal failure, lockToken = "
-								+ lockToken);
-					
-					// Trigger an interrupt
-					futureObj.cancel(true);
-					
-					// Check for interruption failure - technically this should be impossible?
-					if ((futureObj.isCancelled() || futureObj.isDone()) != true) {
-						throw new RuntimeException("Failed to abort task (due to failed lock renewal) : "
-							+ taskName);
-					}
-					
-					// Return false
-					return false;
+								+ currentLockToken.get());
+					wasAborted.set(true);
+					workerThread.interrupt(); // Interrupt worker thread if lock ownership was lost
+				} else {
+					currentLockToken.set(renewedToken); // Save updated lock token for next renewal cycle
 				}
+			} catch (Exception e) {
+				// Ignore transient exceptions during lock renewal monitor ticks to allow retry on next interval
 			}
-			
-			// Succesful execution and join
-			return true;
+		}, taskUpdateInterval, taskUpdateInterval, TimeUnit.MILLISECONDS);
+
+		try {
+			// Execute task code directly on current worker thread to avoid nested pool submission and thread starvation
+			runner.run();
+			return !wasAborted.get();
 		} catch (Exception e) {
-			// Exception occured =[
+			// Exception occurred during task execution
 			log()
 				.warning( //
 					"-----------------------------------------------------------------------------------------------"
@@ -326,14 +370,18 @@ public class RunnableTaskManager extends ModuleStructure {
 						+ "\n"
 						+ picoded.core.exception.ExceptionUtils.getStackTrace(e) //
 						+ "\n-----------------------------------------------------------------------------------------------");
+			return false;
 		} finally {
-			// Attempt to release the lockToken, if its valid
+			// Cancel the background lock renewal monitor task
+			renewalFuture.cancel(false);
+
+			// Release lock token in central store / database upon task completion or failure
 			try {
-				if (lockToken > 0) {
-					returnLockToken(taskName, lockToken);
+				long finalToken = currentLockToken.get();
+				if (finalToken > 0) {
+					returnLockToken(taskName, finalToken);
 				}
 			} catch (Exception e) {
-				// Exception occured =[
 				log()
 					.warning( //
 						"-----------------------------------------------------------------------------------------------"
@@ -347,9 +395,6 @@ public class RunnableTaskManager extends ModuleStructure {
 							+ "\n-----------------------------------------------------------------------------------------------");
 			}
 		}
-		
-		// I dunno how it reached here, but it probably means things went bad
-		return false;
 	}
 	
 	//----------------------------------------------------------------

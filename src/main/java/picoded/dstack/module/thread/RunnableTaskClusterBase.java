@@ -744,6 +744,45 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		return executeRunnableTask(taskName, false);
 	}
 	
+	// Async task execution dispatch mode toggle
+	protected boolean isAsyncDispatchEnabled = true;
+
+	/**
+	 * @return true if async task dispatching is enabled
+	 */
+	public boolean isAsyncDispatchEnabled() {
+		return isAsyncDispatchEnabled;
+	}
+
+	/**
+	 * Configure whether task cluster loop dispatches tasks asynchronously
+	 * @param enabled true to enable async multi-threaded task dispatching
+	 */
+	public void setAsyncDispatchEnabled(boolean enabled) {
+		this.isAsyncDispatchEnabled = enabled;
+	}
+
+	/**
+	 * Executes a previously registered task asynchronously, only if schedule check passes
+	 * 
+	 * @param taskName         to execute
+	 * @param ignoreSchedule   ignore schedule check and execute now
+	 * @return Future object representing async task execution, or null if skipped
+	 */
+	public java.util.concurrent.Future<Boolean> executeRunnableTask_async(String taskName, boolean ignoreSchedule) {
+		// Lets fail fast with the schedule first
+		if (ignoreSchedule == false) {
+			if (isRunnableTask_cacheOnly_withoutLockCheck_norStrictScheduleCheck(taskName) == false) {
+				return null;
+			}
+		}
+		
+		// Execute the runnable asynchronously with ignoreSchedule preserved
+		return runnableExecutor.submit(() -> {
+			return executeRunnableTask(taskName, ignoreSchedule);
+		});
+	}
+
 	/**
 	 * Executes a previously registered task, only if lock was succesfully acquired
 	 * This function BLOCKS the current thread, till the task is complete. Or if task failed.
@@ -768,10 +807,8 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	}
 	
 	/**
-	 * Try to execute all runnable scheduled task, blocks till its completed.
-	 * 
-	 * Tasks are executed seqeuntially.
-	 * Task are skipped if they have an existing lock.
+	 * Try to execute all runnable scheduled task.
+	 * Dispatches tasks asynchronously when isAsyncDispatchEnabled is true.
 	 */
 	public void tryAllRunnableScheduledTask() {
 		// Get list of objects
@@ -779,7 +816,11 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		
 		// Iterate the taskSet - ant attempt to run each one of them
 		for (String taskName : taskSet) {
-			executeRunnableTask(taskName, false);
+			if (isAsyncDispatchEnabled) {
+				executeRunnableTask_async(taskName, false);
+			} else {
+				executeRunnableTask(taskName, false);
+			}
 		}
 	}
 	

@@ -38,6 +38,34 @@ public class RunnableTaskCluster extends RunnableTaskClusterBase {
 		super(inStack, inName);
 		setupBackgroundExecutor();
 	}
+
+	/**
+	 * Setup RunnableTaskCluster structure given a stack, name, and thread pool size
+	 *
+	 * @param inStack CommonStack / DStack system to use
+	 * @param inName Name used to setup prefix of complex structure
+	 * @param threadPoolSize Number of worker threads for parallel task execution
+	 */
+	public RunnableTaskCluster(CommonStack inStack, String inName, int threadPoolSize) {
+		super(inStack, inName);
+		configureWorkerExecutor(threadPoolSize);
+		setupBackgroundExecutor();
+	}
+
+	/**
+	 * Setup RunnableTaskCluster structure given a stack, name, thread pool size, and max execution timeout cap
+	 *
+	 * @param inStack CommonStack / DStack system to use
+	 * @param inName Name used to setup prefix of complex structure
+	 * @param threadPoolSize Number of worker threads for parallel task execution
+	 * @param maxTimeoutMs Maximum execution duration timeout cap per task in milliseconds
+	 */
+	public RunnableTaskCluster(CommonStack inStack, String inName, int threadPoolSize, long maxTimeoutMs) {
+		super(inStack, inName);
+		configureWorkerExecutor(threadPoolSize);
+		setMaxTaskExecutionTimeoutMs(maxTimeoutMs);
+		setupBackgroundExecutor();
+	}
 	
 	/**
 	 * Setup RunnableTaskCluster structure given its internal structures
@@ -48,6 +76,48 @@ public class RunnableTaskCluster extends RunnableTaskClusterBase {
 	public RunnableTaskCluster(DataObjectMap inTaskMap, KeyLongMap inLockMap) {
 		super(inTaskMap, inLockMap);
 		setupBackgroundExecutor();
+	}
+
+	/**
+	 * Setup RunnableTaskCluster structure given internal structures and thread pool size
+	 *
+	 * @param inTaskMap used to track various task states
+	 * @param inLockMap used to handle task locking
+	 * @param threadPoolSize Number of worker threads for parallel task execution
+	 */
+	public RunnableTaskCluster(DataObjectMap inTaskMap, KeyLongMap inLockMap, int threadPoolSize) {
+		super(inTaskMap, inLockMap);
+		configureWorkerExecutor(threadPoolSize);
+		setupBackgroundExecutor();
+	}
+
+	/**
+	 * Setup RunnableTaskCluster structure given internal structures, thread pool size, and max execution timeout cap
+	 *
+	 * @param inTaskMap used to track various task states
+	 * @param inLockMap used to handle task locking
+	 * @param threadPoolSize Number of worker threads for parallel task execution
+	 * @param maxTimeoutMs Maximum execution duration timeout cap per task in milliseconds
+	 */
+	public RunnableTaskCluster(DataObjectMap inTaskMap, KeyLongMap inLockMap, int threadPoolSize, long maxTimeoutMs) {
+		super(inTaskMap, inLockMap);
+		configureWorkerExecutor(threadPoolSize);
+		setMaxTaskExecutionTimeoutMs(maxTimeoutMs);
+		setupBackgroundExecutor();
+	}
+
+	/**
+	 * Configure worker thread pool sizing and async dispatch mode
+	 * @param threadPoolSize Target number of worker threads
+	 */
+	protected void configureWorkerExecutor(int threadPoolSize) {
+		if (threadPoolSize > 1) {
+			this.runnableExecutor = Executors.newFixedThreadPool(threadPoolSize);
+			this.setAsyncDispatchEnabled(true);
+		} else {
+			this.runnableExecutor = Executors.newSingleThreadExecutor();
+			this.setAsyncDispatchEnabled(false);
+		}
 	}
 	
 	//----------------------------------------------------------------
