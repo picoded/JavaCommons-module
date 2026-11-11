@@ -410,11 +410,22 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 	}
 	
 	/**
-	 * Given the task object, get updated task activity / start timestamp
-	 * And revaluate "isRunnable" logic
+	 * Validates whether a task object fetched from the database or cache is runnable.
+	 *
+	 * Evaluation Steps:
+	 * 1. Timestamp Cache Synchronization: Reads lastStartTime and
+	 *    lastUpdateTime from the taskObj. If these values are newer than the locally
+	 *    cached values in cache_lastKnownTaskStartMap and cache_lastKnownTaskUpdateMap,
+	 *    the in-memory caches are updated. The task object OID is also refreshed in cache_taskOIDMap.
+	 * 2. Manual Queueing Check: If the task's status field is explicitly set to
+	 *    "queued" (e.g. manually triggered via administrative API), the schedule interval check is
+	 *    bypassed and this method returns true immediately.
+	 * 3. Schedule Interval Validation: Delegates to isRunnableTask_validateCachedTimestamp
+	 *    to verify whether the configured minimum interval rate and delay have elapsed since lastStartTime.
 	 * 
-	 * @param taskObj 
-	 * @return false, if task is not runnable (true - does not gurantee runnability)
+	 * @param taskName Name of the task being evaluated
+	 * @param taskObj  The task data object retrieved from central storage or local cache
+	 * @return false if the task is not runnable due to schedule constraints; true if runnable (lock check still required)
 	 */
 	protected boolean isRunnableTask_validateTaskObject(String taskName, DataObject taskObj) {
 		// Get existing lastStart / update timestamp
@@ -435,6 +446,11 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		// Udpate the task map caching (if needed)
 		cache_taskOIDMap.put(taskName, taskObj._oid());
 		
+		// If task status is explicitly queued, it is runnable immediately
+		if (taskObj != null && taskObj.getString("status", "").equalsIgnoreCase("queued")) {
+			return true;
+		}
+
 		// Revalidate cached timestamp
 		return isRunnableTask_validateCachedTimestamp(taskName);
 	}
@@ -450,7 +466,7 @@ class RunnableTaskClusterBase extends RunnableTaskManager {
 		DataObject taskObj = getCachedTaskObject(taskName);
 
 		// If task status is explicitly queued, it is runnable immediately
-		if (taskObj != null && "queued".equalsIgnoreCase(taskObj.getString("status", ""))) {
+		if (taskObj != null && taskObj.getString("status", "").equalsIgnoreCase("queued")) {
 			return true;
 		}
 
