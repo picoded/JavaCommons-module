@@ -272,6 +272,23 @@ public abstract class AccountTableCore extends AccountTableConfig {
 	}
 	
 	/**
+	 * Performs a search query count, delegating directly to accountDataObjectMap.
+	 *
+	 * @param   where query statement
+	 * @param   where clause values array
+	 *
+	 * @return  The count of matching records
+	 **/
+	@Override
+	public long queryCount(String whereClause, Object[] whereValues) {
+		if (whereClause != null && whereClause.isEmpty()) {
+			whereClause = null;
+			whereValues = null;
+		}
+		return accountDataObjectMap.queryCount(whereClause, whereValues);
+	}
+	
+	/**
 	 * Performs a search query, and returns the respective AccountObject
 	 *
 	 * @param   where query statement
